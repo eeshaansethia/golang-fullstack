@@ -101,6 +101,7 @@ func getUser(db *sql.DB) http.HandlerFunc {
 		err := db.QueryRow("SELECT * FROM users WHERE id = $1", id).Scan(&user.ID, &user.Name, &user.Email)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode("User not found")
 			return
 		}
 
@@ -113,12 +114,17 @@ func createUser(db *sql.DB) http.HandlerFunc {
 		var user User
 		
 		json.NewDecoder(r.Body).Decode(&user)
-
+		if user.Name == "" || user.Email == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode("Name and Email are required fields")
+			return
+		}
 		err:=db.QueryRow("INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id", user.Name, user.Email).Scan(&user.ID)
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(user)
 	}
 }
